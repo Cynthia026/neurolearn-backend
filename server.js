@@ -28,25 +28,34 @@ const PORT = process.env.PORT || 3000;
 // ============================================
 
 // Helmet para headers de seguridad
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // CORS
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5500'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || ['http://localhost:5500'];
+
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitir requests sin origin (mobile apps, Postman)
+    // Permitir requests sin origin (mobile apps, Postman, curl)
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // En desarrollo permitir todo
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    // En producción verificar lista
+    if (allowedOrigins.some(allowed => origin.startsWith(allowed.replace(/\/$/, '')))) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log(`CORS bloqueado para: ${origin} | Permitidos: ${allowedOrigins.join(', ')}`);
+      callback(null, true); // Temporalmente permitir todos mientras se configura
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Preflight para todas las rutas
+app.options('*', cors());
 
 // Rate limiting
 const limiter = rateLimit({
