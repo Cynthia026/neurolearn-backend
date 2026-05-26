@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USUARIOS ────────────────────────────────────────────
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      String   // STUDENT, TEACHER, PARENT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studentProfile Student?
+  teacherProfile Teacher?
+  parentProfile  Parent?
+}
+
+// ─── ESTUDIANTE ──────────────────────────────────────────
+model Student {
+  id               Int       @id @default(autoincrement())
+  userId           Int       @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grade            Int
+  points           Int       @default(0)
+  level            Int       @default(1)
+  streak           Int       @default(0)
+  lastActivityDate DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relaciones nuevas
+  teacherStudents  TeacherStudent[]   // maestros asignados
+  parentChildren   ParentChild[]      // padres vinculados
+  assignedContent  ContentAssignment[] // contenido asignado por maestro
+  evaluations      EvaluationAssignment[] // evaluaciones asignadas
+  gameScores       GameScore[]
+  achievements     Achievement[]
+  progress         Progress[]
+}
+
+// ─── MAESTRO ─────────────────────────────────────────────
+model Teacher {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject    String
+  gradeLevel Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relaciones nuevas
+  students   TeacherStudent[]  // alumnos asignados
+  contents   Content[]         // contenidos creados
+  activities Activity[]        // actividades creadas
+  evaluations Evaluation[]     // evaluaciones creadas
+}
+
+// ─── PADRE ───────────────────────────────────────────────
+model Parent {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phoneNumber String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones nuevas
+  children    ParentChild[]  // hijos vinculados
+}
+
+// ─── RELACIÓN MAESTRO-ALUMNO ─────────────────────────────
+model TeacherStudent {
+  id        Int      @id @default(autoincrement())
+  teacherId Int
+  studentId Int
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([teacherId, studentId])
+}
+
+// ─── RELACIÓN PADRE-HIJO ─────────────────────────────────
+model ParentChild {
+  id        Int      @id @default(autoincrement())
+  parentId  Int
+  studentId Int
+  parent    Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([parentId, studentId])
+}
+
+// ─── CONTENIDO EDUCATIVO (creado por maestro) ────────────
+model Content {
+  id          Int      @id @default(autoincrement())
+  teacherId   Int
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @db.Text
+  subject     String   // MATH, SPANISH, MEMORY, LOGIC
+  grade       Int
+  type        String   // VIDEO, PDF, GAME, EXERCISE, LINK
+  url         String?  @db.Text
+  body        String?  @db.LongText
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments ContentAssignment[]
+}
+
+// ─── ASIGNACIÓN DE CONTENIDO A ALUMNO ───────────────────
+model ContentAssignment {
+  id          Int      @id @default(autoincrement())
+  contentId   Int
+  studentId   Int
+  content     Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  dueDate     DateTime?
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([contentId, studentId])
+}
+
+// ─── ACTIVIDADES (tareas del maestro) ───────────────────
+model Activity {
+  id          Int      @id @default(autoincrement())
+  teacherId   Int
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @db.Text
+  subject     String
+  grade       Int
+  dueDate     DateTime?
+  gameType    String?  // MATH_GAME, MEMORY_GAME, etc. (si es un juego)
+  minScore    Int?     // puntuación mínima requerida
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── JUEGOS ──────────────────────────────────────────────
+model GameScore {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  gameType  String
+  score     Int
+  timeSpent Int
+  accuracy  Int
+  level     Int
+  createdAt DateTime @default(now())
+}
+
+// ─── LOGROS ──────────────────────────────────────────────
+model Achievement {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  name        String
+  description String   @db.Text
+  icon        String
+  unlockedAt  DateTime @default(now())
+}
+
+// ─── PROGRESO ────────────────────────────────────────────
+model Progress {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   String
+  topic     String
+  completed Boolean  @default(false)
+  score     Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── EVALUACIÓN (creada por el maestro) ──────────────────
+model Evaluation {
+  id           Int      @id @default(autoincrement())
+  teacherId    Int
+  teacher      Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title        String
+  description  String   @db.Text
+  subject      String   // MATH, SPANISH, MEMORY, LOGIC
+  grade        Int
+  timeLimit    Int?     // minutos límite (null = sin límite)
+  maxScore     Int      @default(100)
+  passingScore Int      @default(60)  // mínimo para aprobar
+  isPublished  Boolean  @default(false)
+  dueDate      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  questions    Question[]
+  assignments  EvaluationAssignment[]
+}
+
+// ─── PREGUNTA DE EVALUACIÓN ───────────────────────────────
+model Question {
+  id             Int        @id @default(autoincrement())
+  evaluationId   Int
+  evaluation     Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  text           String     @db.Text
+  type           String     // MULTIPLE_CHOICE, TRUE_FALSE, SHORT_ANSWER
+  points         Int        @default(10)
+  order          Int        @default(0)
+  imageUrl       String?
+  createdAt      DateTime   @default(now())
+
+  options        QuestionOption[]
+  answers        StudentAnswer[]
+}
+
+// ─── OPCIONES DE PREGUNTA (para opción múltiple) ─────────
+model QuestionOption {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+}
+
+// ─── ASIGNACIÓN DE EVALUACIÓN A ALUMNO ───────────────────
+model EvaluationAssignment {
+  id           Int        @id @default(autoincrement())
+  evaluationId Int
+  studentId    Int
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status       String     @default("PENDING")  // PENDING, IN_PROGRESS, COMPLETED
+  startedAt    DateTime?
+  submittedAt  DateTime?
+  score        Int?
+  passed       Boolean?
+  timeSpent    Int?       // segundos
+  createdAt    DateTime   @default(now())
+
+  answers      StudentAnswer[]
+
+  @@unique([evaluationId, studentId])
+}
+
+// ─── RESPUESTA DEL ALUMNO ─────────────────────────────────
+model StudentAnswer {
+  id           Int                  @id @default(autoincrement())
+  assignmentId Int
+  questionId   Int
+  assignment   EvaluationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  question     Question             @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId Int?             // para opción múltiple / V-F
+  textAnswer   String?  @db.Text   // para respuesta corta
+  isCorrect    Boolean?
+  pointsEarned Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@unique([assignmentId, questionId])
+}
