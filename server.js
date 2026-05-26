@@ -24,6 +24,28 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================
+// CORS MANUAL — va PRIMERO antes de todo
+// ============================================
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // Permitir el origen que viene en el request
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  // Responder inmediatamente a preflight OPTIONS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// ============================================
 // MIDDLEWARES DE SEGURIDAD
 // ============================================
 
