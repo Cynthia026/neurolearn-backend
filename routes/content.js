@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import {
   createContent, getMyContent, assignContent,
   updateContent, deleteContent,
-  getMyAssignments, completeAssignment
+  getAssignedContent, markContentComplete
 } from '../controllers/contentController.js';
 
 const router = express.Router();
@@ -18,7 +18,7 @@ router.put('/:id',         updateContent);
 router.delete('/:id',      deleteContent);
 
 // ALUMNO
-router.get('/my-assignments',          getMyAssignments);
-router.post('/complete/:assignmentId', completeAssignment);
+router.get('/my-assignments',          getAssignedContent);
+router.post('/complete/:assignmentId', markContentComplete);
 
 export default router;
